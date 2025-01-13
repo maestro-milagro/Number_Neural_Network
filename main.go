@@ -8,7 +8,7 @@ import (
 func main() {
 	net := NewNetwork(784, 200, 10, 0.1)
 
-	mnist := flag.String("mnist", "", "Either train or predict to evaluate neural network")
+	mnist := flag.String("mnist", "predict", "Either train or predict to evaluate neural network")
 
 	flag.Parse()
 

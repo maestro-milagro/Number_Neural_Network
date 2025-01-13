@@ -141,7 +141,7 @@ func (net Network) Train(inputData, targetData []float64) {
 	outputErrors := subtract(target, finalOutputs)
 	hiddenErrors := dot(net.outputWeights.T(), outputErrors)
 
-	net.outputWeights = add(net.outputWeights, scale(net.learningRate, dot(multiply(outputErrors, sigmoidPrime(finalOutputs)), input.T()))).(*mat.Dense)
+	net.outputWeights = add(net.outputWeights, scale(net.learningRate, dot(multiply(outputErrors, sigmoidPrime(finalOutputs)), hiddenOutputs.T()))).(*mat.Dense)
 
 	net.hiddenWeights = add(net.hiddenWeights, scale(net.learningRate, dot(multiply(hiddenErrors, sigmoidPrime(hiddenOutputs)), input.T()))).(*mat.Dense)
 }
@@ -215,14 +215,14 @@ func (net *Network) mnistTrain() error {
 			inputs := make([]float64, net.inputs)
 			for i := range inputs {
 				x, _ := strconv.ParseFloat(record[i], 64)
-				inputs[i] = (x / 0.999 * 255.0) + 0.001
+				inputs[i] = (x / 0.99 * 255.0) + 0.01
 			}
 			targets := make([]float64, net.outputs)
 			for i := range targets {
-				targets[i] = 0.001
+				targets[i] = 0.01
 			}
 			x, _ := strconv.Atoi(record[0])
-			targets[x] = 0.999
+			targets[x] = 0.99
 
 			net.Train(inputs, targets)
 		}
@@ -254,7 +254,7 @@ func (net *Network) mnistPredict() error {
 		inputs := make([]float64, net.inputs)
 		for i := range inputs {
 			x, _ := strconv.ParseFloat(record[i], 64)
-			inputs[i] = (x / 0.999 * 255.0) + 0.001
+			inputs[i] = (x / 0.99 * 255.0) + 0.01
 		}
 		outputs := net.Predict(inputs)
 
