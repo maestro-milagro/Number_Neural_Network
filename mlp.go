@@ -4,6 +4,7 @@ import (
 	"gonum.org/v1/gonum/mat"
 	"gonum.org/v1/gonum/stat/distuv"
 	"math"
+	"os"
 )
 
 type Network struct {
@@ -110,4 +111,78 @@ func randomArray(size int, v float64) (data []float64) {
 
 func sigmoid(r, c int, z float64) float64 {
 	return 1.0 / (1 + math.Exp(-1*z))
+}
+
+func sigmoidPrime(m mat.Matrix) mat.Matrix {
+	rows, _ := m.Dims()
+	o := make([]float64, rows)
+	for i := range o {
+		o[i] = 1
+	}
+	ones := mat.NewDense(rows, 1, o)
+	return multiply(m, subtract(ones, m)) // m * (1 - m)
+}
+
+func (net Network) Train(inputData, targetData []float64) {
+	input := mat.NewDense(len(inputData), 1, inputData)
+	hiddenInputs := dot(net.hiddenWeights, input)
+	hiddenOutputs := apply(sigmoid, hiddenInputs)
+	finalInputs := dot(net.outputWeights, hiddenOutputs)
+	finalOutputs := apply(sigmoid, finalInputs)
+
+	target := mat.NewDense(len(targetData), 1, targetData)
+	outputErrors := subtract(target, finalOutputs)
+	hiddenErrors := dot(net.outputWeights.T(), outputErrors)
+
+	net.outputWeights = add(net.outputWeights, scale(net.learningRate, dot(multiply(outputErrors, sigmoidPrime(finalOutputs)), input.T()))).(*mat.Dense)
+
+	net.hiddenWeights = add(net.hiddenWeights, scale(net.learningRate, dot(multiply(hiddenErrors, sigmoidPrime(hiddenOutputs)), input.T()))).(*mat.Dense)
+}
+
+func (net *Network) save() error {
+	hidden, err := os.Create("data/hweights.model")
+	defer hidden.Close()
+	if err != nil {
+		return err
+	}
+	_, err = net.hiddenWeights.MarshalBinaryTo(hidden)
+	if err != nil {
+		return err
+	}
+	output, err := os.Create("data/outputs.model")
+	defer output.Close()
+	if err != nil {
+		return err
+	}
+	_, err = net.outputWeights.MarshalBinaryTo(output)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (net *Network) load() error {
+	hidden, err := os.Open("data/hweights.model")
+	defer hidden.Close()
+	if err != nil {
+		return err
+	}
+	net.hiddenWeights.Reset()
+	_, err = net.hiddenWeights.UnmarshalBinaryFrom(hidden)
+	if err != nil {
+		return err
+	}
+	output, err := os.Open("data/outputs.model")
+	defer output.Close()
+	if err != nil {
+		return err
+	}
+	net.outputWeights.Reset()
+	_, err = net.outputWeights.UnmarshalBinaryFrom(output)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
