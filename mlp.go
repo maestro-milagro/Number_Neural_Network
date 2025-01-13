@@ -1,10 +1,17 @@
 package main
 
 import (
+	"bufio"
+	"encoding/csv"
+	"fmt"
+	"golang.org/x/exp/rand"
 	"gonum.org/v1/gonum/mat"
 	"gonum.org/v1/gonum/stat/distuv"
+	"io"
 	"math"
 	"os"
+	"strconv"
+	"time"
 )
 
 type Network struct {
@@ -184,5 +191,88 @@ func (net *Network) load() error {
 		return err
 	}
 
+	return nil
+}
+func (net *Network) mnistTrain() error {
+	rand.Seed(uint64(time.Now().UTC().UnixNano()))
+	t1 := time.Now()
+
+	for epochs := 0; epochs < 5; epochs++ {
+		tesFile, err := os.Open("mnist_dataset/mnist_train.csv")
+		if err != nil {
+			return err
+		}
+		r := csv.NewReader(bufio.NewReader(tesFile))
+		for {
+			record, err := r.Read()
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				tesFile.Close()
+				return err
+			}
+			inputs := make([]float64, net.inputs)
+			for i := range inputs {
+				x, _ := strconv.ParseFloat(record[i], 64)
+				inputs[i] = (x / 0.999 * 255.0) + 0.001
+			}
+			targets := make([]float64, net.outputs)
+			for i := range targets {
+				targets[i] = 0.001
+			}
+			x, _ := strconv.Atoi(record[0])
+			targets[x] = 0.999
+
+			net.Train(inputs, targets)
+		}
+		tesFile.Close()
+	}
+	elapsed := time.Since(t1)
+	fmt.Printf("\nTime taken to train: %s\n\n", elapsed)
+	return nil
+}
+
+func (net *Network) mnistPredict() error {
+	rand.Seed(uint64(time.Now().UTC().UnixNano()))
+	t1 := time.Now()
+
+	file, err := os.Open("mnist_dataset/mnist_test.csv")
+	if err != nil {
+		return err
+	}
+	score := 0
+	r := csv.NewReader(bufio.NewReader(file))
+	for {
+		record, err := r.Read()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
+		}
+		inputs := make([]float64, net.inputs)
+		for i := range inputs {
+			x, _ := strconv.ParseFloat(record[i], 64)
+			inputs[i] = (x / 0.999 * 255.0) + 0.001
+		}
+		outputs := net.Predict(inputs)
+
+		best := 0
+		highest := 0.0
+		for i := 0; i < net.outputs; i++ {
+			if outputs.At(i, 0) > highest {
+				best = i
+				highest = outputs.At(i, 0)
+			}
+		}
+		target, _ := strconv.Atoi(record[0])
+		if best == target {
+			score++
+		}
+	}
+	elapsed := time.Since(t1)
+	fmt.Printf("Time taken to check: %s\n", elapsed)
+	fmt.Printf("Score: %d\n", score)
 	return nil
 }
